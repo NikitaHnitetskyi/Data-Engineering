@@ -37,6 +37,7 @@
 
 ## Завдання 1 — `Dockerfile` · 30 балів
 
+<<<<<<< HEAD
 Образ для `app/gh_ingest.py`. Вимоги:
 
 - **multi-stage build**: окремий `builder`-стейдж встановлює залежності, `runtime`-стейдж
@@ -50,6 +51,31 @@
 - `ENTRYPOINT` запускає `app/gh_ingest.py` (3 б).
 
 **Self-check:** `docker build -t gh-ingest:latest .` збирається без помилок.
+=======
+Образ для `app/gh_ingest.py`. **Один образ, одна стадія.** Кожен рядок має бути
+обґрунтований; зайвих не пишемо. Вимоги:
+
+- **базовий образ із фіксованим тегом** — `python:3.12-slim`, не `latest` і не `python:3`
+  (3 б);
+- **залежності окремим шаром перед кодом**: `COPY app/requirements.txt` і `pip install`
+  ідуть **вище** за `COPY` коду, установка — з `--no-cache-dir`. Правка `gh_ingest.py` не
+  повинна тягнути переустановку `psycopg` (9 б);
+- **non-root**: створіть користувача (напр. `appuser`, uid 1000) і поставте `USER` перед
+  `ENTRYPOINT` — процес не має бути root (8 б);
+- точка монтування кешу `/cache` має належати цьому користувачу (інакше non-root процес
+  не зможе туди писати) (4 б);
+- `ENTRYPOINT` в **exec-form** (JSON-масив) запускає `app/gh_ingest.py` (3 б);
+- `PYTHONUNBUFFERED=1` — без нього `docker compose logs ingestor` мовчить, поки скрипт
+  качає 138 MB (3 б).
+
+**Self-check:**
+
+```bash
+docker build -t gh-ingest:latest .            # збирається без помилок
+touch app/gh_ingest.py && docker build .      # pip install -> "CACHED" / "Using cache"
+docker run --rm --entrypoint whoami gh-ingest:latest    # appuser, не root
+```
+>>>>>>> upstream/main
 
 ---
 
@@ -99,8 +125,13 @@
 
 ## Бонус · +10 балів — якість образу
 
+<<<<<<< HEAD
 - фінальний образ помітно менший, бо runtime-стейдж не містить build-залежностей
   (орієнтир: ≲ 250 MB) (5 б);
+=======
+- фінальний образ ≲ 250 MB — тобто в ньому немає ні pip-кешу, ні зайвих файлів із
+  build context (5 б);
+>>>>>>> upstream/main
 - доданий робочий `HEALTHCHECK` у Dockerfile (5 б).
 
 ---
