@@ -13,7 +13,6 @@ TODO (Завдання 1): реалізуйте build_bronze().
 """
 
 from __future__ import annotations
-from pathlib import Path
 import polars as pl
 
 from . import config
@@ -29,12 +28,18 @@ def build_bronze() -> pl.DataFrame:
         pl.col("actor").struct.field("login").alias("actor_login"),
         pl.col("repo").struct.field("id").alias("repo_id"),
         pl.col("repo").struct.field("name").alias("repo_name"),
-        pl.col("created_at").str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC").alias("created_at"),
+        pl.col("created_at")
+        .str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC")
+        .alias("created_at"),
         pl.col("public"),
         pl.col("payload").struct.field("action").alias("action"),
-        pl.col("payload").struct.field("commits").list.len().fill_null(0).cast(pl.Int64).alias("commit_count"),
+        pl.col("payload")
+        .struct.field("commits")
+        .list.len()
+        .fill_null(0)
+        .cast(pl.Int64)
+        .alias("commit_count"),
     ).collect()
-    
-    Path(config.BRONZE_FILE).parent.mkdir(parents=True, exist_ok=True)
-    df.write_parquet(config.BRONZE_FILE)
+
+    df.write_parquet(config.BRONZE_FILE, mkdir=True)
     return df
