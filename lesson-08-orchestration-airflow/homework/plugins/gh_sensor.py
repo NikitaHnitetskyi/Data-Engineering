@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import urllib.error
 import urllib.request
 
 from airflow.sensors.base import BaseSensorOperator
@@ -24,10 +23,10 @@ class GHArchiveSensor(BaseSensorOperator):
         ds = context["ds"]
         url = f"https://data.gharchive.org/{ds}-{self.hour}.json.gz"
         req = urllib.request.Request(
-              url,
-              method="HEAD",
-              headers={"User-Agent": "Mozilla/5.0 (compatible; airflow-sensor/1.0)"},
-)
+            url,
+            method="HEAD",
+            headers={"User-Agent": "Mozilla/5.0 (compatible; airflow-sensor/1.0)"},
+        )
 
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
