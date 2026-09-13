@@ -1,23 +1,54 @@
 -- Крок 2: silver.commits. Специфікація: ../../SPEC.md → «Крок 2».
--- Джерело: {{ ref('events') }}, лише PushEvent.
--- from_json(payload, PUSH_SCHEMA) → explode масиву commits → commit grain. PUSH_SCHEMA = var('push_schema').
--- Дедуп: один рядок на commit_sha, найраніший pushed_at.
--- Колонки: commit_sha, repo_name, pushed_by, branch, author_name, author_email, message,
---          is_distinct, pushed_at, is_merge_commit, message_subject, message_length
--- Пастка: `distinct` — reserved word, у DDL-схемі та доступі до поля потрібні backticks.
 
--- TODO: замініть заглушку на запит згідно зі SPEC.md
+with parsed as (
+    select
+        event_id,
+        repo_name,
+        actor_login as pushed_by,
+        created_at as pushed_at,
+        from_json(payload, '{{ var("push_schema") }}') as push
+    from {{ ref('events') }}
+    where event_type = 'PushEvent'
+),
+
+exploded as (
+    select
+        event_id,
+        repo_name,
+        pushed_by,
+        pushed_at,
+        regexp_replace(push.ref, '^refs/heads/', '') as branch,
+        commit.sha as commit_sha,
+        commit.message as message,
+        commit.`distinct` as is_distinct,
+        commit.author.name as author_name,
+        commit.author.email as author_email
+    from parsed
+    lateral view explode(push.commits) t as commit
+),
+
+flagged as (
+    select
+        *,
+        message like 'Merge %' as is_merge_commit,
+        split(message, '\n')[0] as message_subject,
+        length(message) as message_length,
+        row_number() over (partition by commit_sha order by pushed_at asc, event_id asc) as rn
+    from exploded
+)
+
 select
-    cast(null as string)    as commit_sha,
-    cast(null as string)    as repo_name,
-    cast(null as string)    as pushed_by,
-    cast(null as string)    as branch,
-    cast(null as string)    as author_name,
-    cast(null as string)    as author_email,
-    cast(null as string)    as message,
-    cast(null as boolean)   as is_distinct,
-    cast(null as timestamp) as pushed_at,
-    cast(null as boolean)   as is_merge_commit,
-    cast(null as string)    as message_subject,
-    cast(null as int)       as message_length
-where false
+    commit_sha,
+    repo_name,
+    pushed_by,
+    branch,
+    author_name,
+    author_email,
+    message,
+    is_distinct,
+    pushed_at,
+    is_merge_commit,
+    message_subject,
+    message_length
+from flagged
+where rn = 1
