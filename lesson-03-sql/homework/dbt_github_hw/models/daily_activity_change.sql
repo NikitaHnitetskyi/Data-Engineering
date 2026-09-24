@@ -3,9 +3,15 @@
 -- Зміна кількості подій день-до-дня: LAG(...) OVER (ORDER BY ...).
 -- Контракт колонок нижче; заглушка повертає 0 рядків.
 -- =====================================================================
+WITH agg AS (
+    SELECT event_date, count(*) AS events
+    FROM {{ ref('stg_events') }}
+    GROUP BY event_date
+)
 SELECT
-    NULL::DATE   AS event_date,
-    NULL::BIGINT AS events,
-    NULL::BIGINT AS prev_day_events,
-    NULL::BIGINT AS delta_events
-WHERE false  -- TODO: агрегувати stg_events по event_date, потім LAG для попереднього дня
+    event_date,
+    events,
+    lag(events) over (order by event_date) as prev_day_events,
+    events - lag(events) over (order by event_date) as delta_events
+FROM agg
+ORDER BY event_date
