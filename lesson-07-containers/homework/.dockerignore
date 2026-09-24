@@ -1,3 +1,35 @@
 # Завдання 2 — .dockerignore. Специфікація: ../SPEC.md → «.dockerignore».
 # Виключіть із build context усе, що не потрібне образу: кеші Python, .git,
-# .env та секрети, локальні дані. TODO: додайте патерни нижче.
+# .env та секрети, локальні дані.
+
+# Git
+.git/
+.gitignore
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.venv/
+venv/
+
+# Secrets / env files
+.env
+.env.*
+!.env.example
+
+# Docs
+*.md
+
+# Local data / screenshots
+screenshots/
+*.log
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
