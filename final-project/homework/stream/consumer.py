@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import signal
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import FrameType
 
@@ -58,7 +58,10 @@ def landing_path(
     TODO (1): `base/dt=YYYY-MM-DD/hour=HH/part-p{partition}-o{first:012d}-o{last:012d}.ndjson`,
     де dt і hour — UTC-час запису (`ingested_at`). Формат — у SPEC.md, розділ 2.2.
     """
-    raise NotImplementedError("TODO (1): landing_path")
+    dt = ingested_at.strftime("%Y-%m-%d")
+    hour = ingested_at.strftime("%H")
+    name = f"part-p{partition}-o{first_offset:012d}-o{last_offset:012d}.ndjson"
+    return base / f"dt={dt}" / f"hour={hour}" / name
 
 
 def write_batch(
@@ -73,7 +76,32 @@ def write_batch(
     не лишає ні готового файлу, ні `.tmp`. Повторний виклик із тим самим батчем нічого не
     дублює. Вимоги — у SPEC.md, розділ 2.2.
     """
-    raise NotImplementedError("TODO (2): write_batch")
+    by_partition: dict[int, list[tuple[int, bytes]]] = {}
+    for partition, offset, value in records:
+        by_partition.setdefault(partition, []).append((offset, value))
+
+    # Спершу збираємо все в памʼяті (і тим самим валідуємо дані) і лише потім чіпаємо диск:
+    # збій на будь-якому записі не має лишити готового файлу чи .tmp для жодної партиції батчу.
+    buffers: dict[int, tuple[Path, bytes]] = {}
+    for partition, items in by_partition.items():
+        items.sort(key=lambda pair: pair[0])
+        first_offset, last_offset = items[0][0], items[-1][0]
+        path = landing_path(base, ingested_at, partition, first_offset, last_offset)
+        content = b"".join(value.rstrip(b"\n") + b"\n" for _, value in items)
+        buffers[partition] = (path, content)
+
+    written: list[Path] = []
+    for partition in sorted(buffers):
+        path, content = buffers[partition]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        with open(tmp, "wb") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        written.append(path)
+    return written
 
 
 def main() -> None:
@@ -106,11 +134,10 @@ def main() -> None:
         if not batch:
             batch_started = time.monotonic()
             return
-        # TODO (3): записати батч у landing (write_batch), і ЛИШЕ ПОТІМ закомітити офсети
-        # (`consumer.commit(asynchronous=False)`). Порядок «запис -> commit» — це те, що не дає
-        # втрачати повідомлення: падіння між ними дасть дублікати, але не втрати.
-        raise NotImplementedError("TODO (3): flush()")
-        files: list[Path] = []
+        # Порядок «запис -> commit» — це те, що не дає втрачати повідомлення: падіння між ними
+        # дасть дублікати, але не втрати.
+        files = write_batch(config.LANDING_DIR, datetime.now(UTC), batch)
+        consumer.commit(asynchronous=False)
         total += len(batch)
         print(f"  {len(batch)} подій -> {', '.join(p.name for p in files)} (всього {total})")
         batch = []
