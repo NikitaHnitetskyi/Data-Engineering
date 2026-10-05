@@ -15,10 +15,6 @@ watermark -> запис у parquet через foreachBatch -> serving summary.
 Деталі контракту і бали — у SPEC.md.
 """
 
-# Імпорти й окремі присвоєння — це scaffolding під TODO, тому до реалізації ruff
-# бачить їх «невикористаними». Знімаємо ці попередження саме для стартового стабу.
-# ruff: noqa: F401, F841
-
 import json
 import os
 import shutil
