@@ -54,7 +54,7 @@ select
     r.last_event_at,
     case
         when r.closed_at is not null
-            then (unix_timestamp(r.closed_at) - unix_timestamp(r.opened_at)) / 3600.0
+            then cast(unix_timestamp(r.closed_at) - unix_timestamp(r.opened_at) as double) / 3600
     end as hours_to_close
 from ranked r
 left join comment_counts c

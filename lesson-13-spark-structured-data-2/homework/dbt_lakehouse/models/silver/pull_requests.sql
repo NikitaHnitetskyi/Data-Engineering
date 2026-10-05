@@ -61,6 +61,6 @@ select
     last_action,
     last_event_at,
     additions + deletions as churn,
-    (unix_timestamp(coalesce(closed_at, last_event_at)) - unix_timestamp(opened_at)) / 3600.0 as hours_open
+    cast(unix_timestamp(coalesce(closed_at, last_event_at)) - unix_timestamp(opened_at) as double) / 3600 as hours_open
 from ranked
 where rn = 1
